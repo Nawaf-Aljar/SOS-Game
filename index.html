@@ -1,0 +1,1734 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SOS — Multiplayer Game</title>
+    <style>
+        :root {
+            --gap: 4px;
+            --board-max: 650px;
+            --ui-bg: #0f172a;
+            --panel-bg: #1e293b;
+            color-scheme: dark;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+        }
+
+        * {
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: #0f172a;
+            color: #e6eef8;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* --- SETUP PANEL --- */
+        #setupPanel,
+        #modePanel,
+        #lobbyPanel {
+            background: var(--panel-bg);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            margin: 40px auto;
+            width: 100%;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin: 0 0 20px 0;
+            text-align: center;
+            color: #fff;
+        }
+
+        label {
+            display: block;
+            font-size: 13px;
+            margin-top: 12px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+        }
+
+        input[type=text],
+        input[type=number],
+        select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: white;
+            font-size: 16px;
+        }
+
+        input[type=color] {
+            width: 100%;
+            height: 40px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        button {
+            padding: 12px 20px;
+            border-radius: 10px;
+            border: 0;
+            background: #3b82f6;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            background: #2563eb;
+        }
+
+        button.secondary {
+            background: #334155;
+            margin-top: 0;
+            width: auto;
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+
+        .player-setup {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .player-input {
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid #334155;
+        }
+
+        .room-code {
+            font-size: 36px;
+            font-weight: 800;
+            text-align: center;
+            letter-spacing: 8px;
+            color: #3b82f6;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(59, 130, 246, 0.1);
+            border-radius: 12px;
+            border: 2px solid #3b82f6;
+        }
+
+        .waiting {
+            text-align: center;
+            color: #94a3b8;
+            margin: 20px 0;
+        }
+
+        .player-list {
+            margin: 20px 0;
+        }
+
+        .player-item {
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid #334155;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* --- GAME UI --- */
+        #gameUI {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .game-header {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+
+        .player-card {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            border-radius: 12px;
+            background: #1e293b;
+            border: 2px solid transparent;
+            opacity: 0.7;
+            min-width: 140px;
+        }
+
+        .player-card.active {
+            opacity: 1;
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.4);
+            border-color: var(--active-color);
+        }
+
+        .player-score {
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .player-name {
+            font-size: 14px;
+            color: #94a3b8;
+        }
+
+        /* --- BOARD --- */
+        .board-container {
+            position: relative;
+            background: #1e293b;
+            padding: 16px;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            display: flex;
+            justify-content: center;
+        }
+
+        .board {
+            display: grid;
+            gap: var(--gap);
+        }
+
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: calc(var(--cell-size) * 0.6);
+            border-radius: 6px;
+            cursor: pointer;
+            background: #0f172a;
+            border: 2px solid #334155;
+            user-select: none;
+            color: #fff;
+            line-height: 1;
+        }
+
+        .cell:hover {
+            border-color: #64748b;
+        }
+
+        .cell.filled {
+            cursor: default;
+            border-color: transparent;
+            background: #182235;
+        }
+
+        .svg-layer {
+            position: absolute;
+            left: 16px;
+            top: 16px;
+            width: calc(100% - 32px);
+            height: calc(100% - 32px);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* --- LOG --- */
+        .log-panel {
+            width: 100%;
+            max-width: 650px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 13px;
+            color: #94a3b8;
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #334155;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            padding-bottom: 2px;
+        }
+
+        /* --- CHOOSER POPUP --- */
+        .chooser {
+            position: absolute;
+            z-index: 100;
+            display: flex;
+            gap: 8px;
+            padding: 8px;
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            animation: popIn 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .chooser button {
+            width: 40px;
+            height: 40px;
+            margin: 0;
+            padding: 0;
+            border-radius: 8px;
+            font-size: 18px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .chooser button:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: scale(1.1);
+        }
+
+        /* --- GAME OVER MODAL --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(4px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-content {
+            background: #1e293b;
+            padding: 40px;
+            border-radius: 24px;
+            text-align: center;
+            border: 1px solid #334155;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            width: 90%;
+            max-width: 400px;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .modal-title {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+
+        .modal-score {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+            margin: 20px 0;
+        }
+
+        .modal-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        @keyframes popIn {
+            from {
+                opacity: 0;
+                transform: scale(0.8);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- MODE SELECTION -->
+        <div id="modePanel">
+            <h1>SOS Multiplayer</h1>
+            <button id="localBtn">Local Multiplayer</button>
+            <button id="aiBtn" style="background:#8b5cf6;">Play vs AI</button>
+            <button id="createOnlineBtn" style="background:#10b981;">Create Online Game</button>
+            <button id="joinOnlineBtn" style="background:#f59e0b;">Join Online Game</button>
+        </div>
+
+        <!-- LOBBY PANEL -->
+        <div id="lobbyPanel" class="hidden">
+            <h1 id="lobbyTitle">Game Lobby</h1>
+
+            <div id="createLobby" class="hidden">
+                <label>Your Name</label>
+                <input id="hostName" type="text" value="Player 1">
+                <label>Your Color</label>
+                <input id="hostColor" type="color" value="#3b82f6">
+                <label>Number of Players</label>
+                <select id="onlinePlayerCount">
+                    <option value="2">2 Players</option>
+                    <option value="3">3 Players</option>
+                    <option value="4">4 Players</option>
+                    <option value="5">5 Players</option>
+                </select>
+                <label>Grid Size (3 - 20)</label>
+                <input id="onlineGridSize" type="number" min="3" max="20" value="8">
+                <button id="createRoomBtn">Create Room</button>
+            </div>
+
+            <div id="joinLobby" class="hidden">
+                <label>Your Name</label>
+                <input id="guestName" type="text" value="Player 2">
+                <label>Your Color</label>
+                <input id="guestColor" type="color" value="#ef4444">
+                <label>Room Code</label>
+                <input id="roomCodeInput" type="text" placeholder="Enter 6-character code" maxlength="6"
+                    style="text-transform:uppercase;">
+                <button id="joinRoomBtn">Join Room</button>
+            </div>
+
+            <div id="waitingRoom" class="hidden">
+                <div class="room-code" id="displayRoomCode"></div>
+                <div class="waiting">Share this code with other players</div>
+                <div class="player-list" id="playerList"></div>
+                <button id="startOnlineBtn">Start Game</button>
+            </div>
+
+            <button class="secondary" id="backToModeBtn"
+                style="width:auto;display:inline-block;margin-top:10px;">Back</button>
+        </div>
+
+        <!-- LOCAL SETUP PANEL -->
+        <div id="setupPanel" class="hidden">
+            <h1>Local Multiplayer Setup</h1>
+
+            <label>Number of Players</label>
+            <select id="playerCount">
+                <option value="2">2 Players</option>
+                <option value="3">3 Players</option>
+                <option value="4">4 Players</option>
+                <option value="5">5 Players</option>
+            </select>
+
+            <div id="playersContainer" class="player-setup"></div>
+
+            <div style="display:flex; gap:10px; align-items:center; margin-top:16px;">
+                <input type="checkbox" id="customSizeCheck" style="width:auto;">
+                <label for="customSizeCheck" style="margin:0;">Custom Board Size</label>
+            </div>
+
+            <div id="squareSize">
+                <label>Grid Size (3 - 20)</label>
+                <input id="gridSize" type="number" min="3" max="20" value="8">
+            </div>
+
+            <div id="customSize" class="hidden"
+                style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+                <div>
+                    <label>Width (3 - 20)</label>
+                    <input id="gridWidth" type="number" min="3" max="20" value="8">
+                </div>
+                <div>
+                    <label>Height (3 - 20)</label>
+                    <input id="gridHeight" type="number" min="3" max="20" value="8">
+                </div>
+            </div>
+
+            <button id="startBtn">Start Game</button>
+            <button class="secondary" id="backBtn"
+                style="width:auto;display:inline-block;margin-top:10px;">Back</button>
+            <div style="margin-top:16px; font-size:12px; color:#64748b; text-align:center;">
+                Rules: Place S or O. Form "SOS" horizontally, vertically, or diagonally to score and move again.
+            </div>
+        </div>
+
+        <!-- AI SETUP PANEL -->
+        <div id="aiSetupPanel" class="hidden">
+            <h1>Play vs AI</h1>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+                <div>
+                    <label>Your Name</label>
+                    <input id="aiPlayerName" type="text" value="Player">
+                    <label>Your Color</label>
+                    <input id="aiPlayerColor" type="color" value="#3b82f6">
+                </div>
+                <div>
+                    <label>AI Name</label>
+                    <input id="aiName" type="text" value="AI">
+                    <label>AI Color</label>
+                    <input id="aiColor" type="color" value="#ef4444">
+                </div>
+            </div>
+
+            <label>AI Difficulty</label>
+            <select id="aiDifficulty">
+                <option value="easy">Easy (Random)</option>
+                <option value="medium" selected>Medium (Smart)</option>
+            </select>
+
+            <div style="display:flex; gap:10px; align-items:center; margin-top:16px;">
+                <input type="checkbox" id="customSizeCheckAI" style="width:auto;">
+                <label for="customSizeCheckAI" style="margin:0;">Custom Board Size</label>
+            </div>
+
+            <div id="squareSizeAI">
+                <label>Grid Size (3 - 20)</label>
+                <input id="gridSizeAI" type="number" min="3" max="20" value="8">
+            </div>
+
+            <div id="customSizeAI" class="hidden"
+                style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px;">
+                <div>
+                    <label>Width (3 - 20)</label>
+                    <input id="gridWidthAI" type="number" min="3" max="20" value="8">
+                </div>
+                <div>
+                    <label>Height (3 - 20)</label>
+                    <input id="gridHeightAI" type="number" min="3" max="20" value="8">
+                </div>
+            </div>
+
+            <button id="startAIBtn">Start Game</button>
+            <button class="secondary" id="backAIBtn"
+                style="width:auto;display:inline-block;margin-top:10px;">Back</button>
+        </div>
+
+        <!-- GAME UI -->
+        <div id="gameUI" class="hidden">
+
+            <div class="game-header" id="playerCardsContainer">
+                <button class="secondary" id="menuBtn" style="background:#475569;">Back to Menu</button>
+            </div>
+
+            <div class="board-container">
+                <div id="board" class="board"></div>
+                <svg id="svgLayer" class="svg-layer"></svg>
+            </div>
+
+            <div class="log-panel" id="log"></div>
+        </div>
+    </div>
+
+    <!-- GAME OVER MODAL -->
+    <div id="gameOverModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div id="winnerText" class="modal-title">PLAYER WINS</div>
+            <div style="font-size:13px; color:#94a3b8;">Final Scores</div>
+            <div id="finalScore" class="modal-score"></div>
+
+            <div class="modal-buttons">
+                <button id="modalRestartBtn">Play Again</button>
+                <button id="modalMenuBtn" class="secondary">Back to Menu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script>
+        // ============ FIREBASE CONFIG ============
+        const firebaseConfig = {
+                apiKey: "AIzaSyC6hSxIsfCADnYtnRJsmYMzbT2RmyLX0wc",
+                authDomain: "sos-game-55b45.firebaseapp.com",
+                databaseURL: "https://sos-game-55b45-default-rtdb.asia-southeast1.firebasedatabase.app",
+                projectId: "sos-game-55b45",
+                storageBucket: "sos-game-55b45.firebasestorage.app",
+                messagingSenderId: "134808829880",
+                appId: "1:134808829880:web:846ae8a2eb9fd2c85ad94d"
+            };
+
+        // Initialize Firebase
+        let db = null;
+        let isOnlineMode = false;
+        let roomCode = null;
+        let roomRef = null;
+        let myPlayerId = null;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.database();
+        } catch (e) {
+            console.warn("Firebase not configured:", e);
+        }
+
+        // DOM Elements
+        const modePanel = document.getElementById('modePanel');
+        const setupPanel = document.getElementById('setupPanel');
+        const lobbyPanel = document.getElementById('lobbyPanel');
+        const gameUI = document.getElementById('gameUI');
+        const boardEl = document.getElementById('board');
+        const svg = document.getElementById('svgLayer');
+        const logEl = document.getElementById('log');
+        const playerCardsContainer = document.getElementById('playerCardsContainer');
+
+        // Mode buttons
+        const localBtn = document.getElementById('localBtn');
+        const aiBtn = document.getElementById('aiBtn');
+        const createOnlineBtn = document.getElementById('createOnlineBtn');
+        const joinOnlineBtn = document.getElementById('joinOnlineBtn');
+        const backToModeBtn = document.getElementById('backToModeBtn');
+
+        // AI setup elements
+        const aiSetupPanel = document.getElementById('aiSetupPanel');
+        const startAIBtn = document.getElementById('startAIBtn');
+        const backAIBtn = document.getElementById('backAIBtn');
+        const customSizeCheckAI = document.getElementById('customSizeCheckAI');
+        const squareSizeAI = document.getElementById('squareSizeAI');
+        const customSizeAI = document.getElementById('customSizeAI');
+
+        // Custom size elements
+        const customSizeCheck = document.getElementById('customSizeCheck');
+        const squareSize = document.getElementById('squareSize');
+        const customSize = document.getElementById('customSize');
+
+        // Lobby elements
+        const createLobby = document.getElementById('createLobby');
+        const joinLobby = document.getElementById('joinLobby');
+        const waitingRoom = document.getElementById('waitingRoom');
+        const createRoomBtn = document.getElementById('createRoomBtn');
+        const joinRoomBtn = document.getElementById('joinRoomBtn');
+        const startOnlineBtn = document.getElementById('startOnlineBtn');
+        const displayRoomCode = document.getElementById('displayRoomCode');
+        const playerList = document.getElementById('playerList');
+
+        // Local game elements
+        const startBtn = document.getElementById('startBtn');
+        const backBtn = document.getElementById('backBtn');
+        const menuBtn = document.getElementById('menuBtn');
+        const playerCountSelect = document.getElementById('playerCount');
+        const playersContainer = document.getElementById('playersContainer');
+        const gridSizeIn = document.getElementById('gridSize');
+
+        // Modal
+        const modal = document.getElementById('gameOverModal');
+        const winnerText = document.getElementById('winnerText');
+        const finalScore = document.getElementById('finalScore');
+        const modalRestartBtn = document.getElementById('modalRestartBtn');
+        const modalMenuBtn = document.getElementById('modalMenuBtn');
+
+        // Default colors and names
+        const defaultColors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
+        const defaultNames = ['Blue', 'Red', 'Green', 'Orange', 'Purple'];
+
+        // Game State
+        let n = 8;
+        let boardWidth = 8;
+        let boardHeight = 8;
+        let board = [];
+        let players = [];
+        let current = 0;
+        let scores = [];
+        let matchedSet = new Set();
+        let history = [];
+        let aiEnabled = false;
+        let aiPlayerIndex = -1;
+
+        // ============ UTILITY FUNCTIONS ============
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let code = '';
+            for (let i = 0; i < 6; i++) {
+                code += chars[Math.floor(Math.random() * chars.length)];
+            }
+            return code;
+        }
+
+        function generatePlayerId() {
+            return 'player_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        // ============ MODE SELECTION ============
+        localBtn.addEventListener('click', () => {
+            isOnlineMode = false;
+            aiEnabled = false;
+            modePanel.classList.add('hidden');
+            setupPanel.classList.remove('hidden');
+            createPlayerInputs();
+        });
+
+        aiBtn.addEventListener('click', () => {
+            isOnlineMode = false;
+            aiEnabled = true;
+            modePanel.classList.add('hidden');
+            aiSetupPanel.classList.remove('hidden');
+        });
+
+        createOnlineBtn.addEventListener('click', () => {
+            if (!db) {
+                alert('Firebase not configured! Please follow setup instructions.');
+                return;
+            }
+            isOnlineMode = true;
+            aiEnabled = false;
+            modePanel.classList.add('hidden');
+            lobbyPanel.classList.remove('hidden');
+            createLobby.classList.remove('hidden');
+            joinLobby.classList.add('hidden');
+            waitingRoom.classList.add('hidden');
+        });
+
+        joinOnlineBtn.addEventListener('click', () => {
+            if (!db) {
+                alert('Firebase not configured! Please follow setup instructions.');
+                return;
+            }
+            isOnlineMode = true;
+            aiEnabled = false;
+            modePanel.classList.add('hidden');
+            lobbyPanel.classList.remove('hidden');
+            createLobby.classList.add('hidden');
+            joinLobby.classList.remove('hidden');
+            waitingRoom.classList.add('hidden');
+        });
+
+        backToModeBtn.addEventListener('click', () => {
+            if (roomRef) roomRef.off();
+            lobbyPanel.classList.add('hidden');
+            setupPanel.classList.add('hidden');
+            aiSetupPanel.classList.add('hidden');
+            modePanel.classList.remove('hidden');
+        });
+
+        backBtn.addEventListener('click', () => {
+            setupPanel.classList.add('hidden');
+            modePanel.classList.remove('hidden');
+        });
+
+        backAIBtn.addEventListener('click', () => {
+            aiSetupPanel.classList.add('hidden');
+            modePanel.classList.remove('hidden');
+        });
+
+        // Custom size toggles
+        customSizeCheck.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                squareSize.classList.add('hidden');
+                customSize.classList.remove('hidden');
+            } else {
+                squareSize.classList.remove('hidden');
+                customSize.classList.add('hidden');
+            }
+        });
+
+        customSizeCheckAI.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                squareSizeAI.classList.add('hidden');
+                customSizeAI.classList.remove('hidden');
+            } else {
+                squareSizeAI.classList.remove('hidden');
+                customSizeAI.classList.add('hidden');
+            }
+        });
+
+        // ============ ONLINE ROOM CREATION ============
+        createRoomBtn.addEventListener('click', async () => {
+            roomCode = generateRoomCode();
+            myPlayerId = generatePlayerId();
+
+            const hostName = document.getElementById('hostName').value || 'Player 1';
+            const hostColor = document.getElementById('hostColor').value;
+            const maxPlayers = parseInt(document.getElementById('onlinePlayerCount').value);
+            const gridSize = parseInt(document.getElementById('onlineGridSize').value);
+
+            const roomData = {
+                host: myPlayerId,
+                maxPlayers: maxPlayers,
+                gridSize: gridSize,
+                players: {
+                    [myPlayerId]: {
+                        name: hostName,
+                        color: hostColor,
+                        index: 0,
+                        isHost: true
+                    }
+                },
+                gameStarted: false,
+                gameState: null
+            };
+
+            await db.ref('rooms/' + roomCode).set(roomData);
+
+            displayRoomCode.textContent = roomCode;
+            createLobby.classList.add('hidden');
+            waitingRoom.classList.remove('hidden');
+
+            listenToRoom();
+        });
+
+        // ============ ONLINE ROOM JOINING ============
+        joinRoomBtn.addEventListener('click', async () => {
+            const code = document.getElementById('roomCodeInput').value.toUpperCase();
+            if (code.length !== 6) {
+                alert('Please enter a valid 6-character room code');
+                return;
+            }
+
+            const roomSnapshot = await db.ref('rooms/' + code).once('value');
+            if (!roomSnapshot.exists()) {
+                alert('Room not found!');
+                return;
+            }
+
+            const roomData = roomSnapshot.val();
+            const playerCount = Object.keys(roomData.players).length;
+
+            if (playerCount >= roomData.maxPlayers) {
+                alert('Room is full!');
+                return;
+            }
+
+            if (roomData.gameStarted) {
+                alert('Game already started!');
+                return;
+            }
+
+            roomCode = code;
+            myPlayerId = generatePlayerId();
+
+            const guestName = document.getElementById('guestName').value || 'Player ' + (playerCount + 1);
+            const guestColor = document.getElementById('guestColor').value;
+
+            await db.ref('rooms/' + roomCode + '/players/' + myPlayerId).set({
+                name: guestName,
+                color: guestColor,
+                index: playerCount,
+                isHost: false
+            });
+
+            displayRoomCode.textContent = roomCode;
+            joinLobby.classList.add('hidden');
+            waitingRoom.classList.remove('hidden');
+
+            listenToRoom();
+        });
+
+        // ============ LISTEN TO ROOM CHANGES ============
+        function listenToRoom() {
+            roomRef = db.ref('rooms/' + roomCode);
+
+            roomRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+
+                // Update player list
+                updatePlayerList(data.players);
+
+                // Check if game started
+                if (data.gameStarted && data.gameState) {
+                    loadOnlineGame(data);
+                }
+
+                // Show/hide start button
+                const isHost = data.players[myPlayerId]?.isHost;
+                startOnlineBtn.style.display = isHost ? 'block' : 'none';
+            });
+        }
+
+        function updatePlayerList(playersData) {
+            playerList.innerHTML = '';
+            Object.values(playersData).sort((a, b) => a.index - b.index).forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'player-item';
+                div.innerHTML = `
+                    <div style="width:16px;height:16px;border-radius:50%;background:${p.color}"></div>
+                    <span>${p.name}</span>
+                    ${p.isHost ? '<span style="color:#10b981;margin-left:auto;">HOST</span>' : ''}
+                `;
+                playerList.appendChild(div);
+            });
+        }
+
+        // ============ START ONLINE GAME ============
+        startOnlineBtn.addEventListener('click', async () => {
+            const snapshot = await roomRef.once('value');
+            const data = snapshot.val();
+
+            players = Object.entries(data.players)
+                .sort(([, a], [, b]) => a.index - b.index)
+                .map(([id, p]) => ({ id, ...p }));
+
+            boardWidth = data.gridSize;
+            boardHeight = data.gridSize;
+
+            // Create clean initial board with no undefined values
+            const initialBoard = [];
+            for (let r = 0; r < boardHeight; r++) {
+                initialBoard[r] = [];
+                for (let c = 0; c < boardWidth; c++) {
+                    initialBoard[r][c] = null;
+                }
+            }
+
+            const initialState = {
+                board: initialBoard,
+                current: 0,
+                scores: Array(players.length).fill(0),
+                history: [],
+                matchedSet: [],
+                matchedLines: [],
+                gameOver: false
+            };
+
+            await roomRef.update({
+                gameStarted: true
+            });
+
+            await roomRef.child('gameState').set(initialState);
+
+            // Wait a bit for Firebase to sync, then load
+            setTimeout(() => {
+                roomRef.once('value').then(snap => {
+                    loadOnlineGame(snap.val());
+                });
+            }, 300);
+        });
+
+        function loadOnlineGame(data) {
+            if (!data || !data.gameState) {
+                console.error('Invalid game data:', data);
+                return;
+            }
+
+            lobbyPanel.classList.add('hidden');
+            gameUI.classList.remove('hidden');
+
+            players = Object.entries(data.players)
+                .sort(([, a], [, b]) => a.index - b.index)
+                .map(([id, p]) => ({ id, ...p }));
+
+            n = data.gridSize;
+            board = convertFirebaseBoard(data.gameState.board, n);
+            current = data.gameState.current || 0;
+            scores = Array.isArray(data.gameState.scores) ? data.gameState.scores : Object.values(data.gameState.scores || {});
+            if (scores.length === 0) scores = Array(players.length).fill(0);
+            matchedSet = new Set(data.gameState.matchedSet || []);
+            history = data.gameState.history || [];
+
+            createPlayerCards();
+            renderBoardGrid();
+            updateScoreboard();
+            redrawBoard();
+
+            // Listen for game state changes
+            roomRef.child('gameState').off(); // Remove old listeners
+            roomRef.child('gameState').on('value', (snapshot) => {
+                const state = snapshot.val();
+                if (!state) return;
+
+                board = convertFirebaseBoard(state.board, boardHeight, boardWidth);
+                current = state.current || 0;
+                scores = Array.isArray(state.scores) ? state.scores : Object.values(state.scores || {});
+                if (scores.length === 0) scores = Array(players.length).fill(0);
+                matchedSet = new Set(state.matchedSet || []);
+                history = state.history || [];
+
+                // Check if this is a reset (empty history)
+                if (history.length === 0 && modal && !modal.classList.contains('hidden')) {
+                    modal.classList.add('hidden');
+                    logEl.innerHTML = '';
+                    log('Game has been reset by host!');
+                }
+
+                updateScoreboard();
+                redrawBoard();
+
+                // Redraw all matched lines
+                svg.innerHTML = '';
+                if (state.matchedLines) {
+                    state.matchedLines.forEach(line => {
+                        drawLine(line.coords, line.color);
+                        highlightCells(line.coords, line.color);
+                    });
+                }
+
+                // Game over condition - check even for empty board
+                if (state.gameOver) {
+                    setTimeout(() => endGame(), 500);
+                }
+            });
+        }
+
+        // Convert Firebase board to proper 2D array
+        function convertFirebaseBoard(fbBoard, height, width) {
+            const newBoard = [];
+
+            // Initialize with null values
+            for (let r = 0; r < height; r++) {
+                newBoard[r] = [];
+                for (let c = 0; c < width; c++) {
+                    newBoard[r][c] = null;
+                }
+            }
+
+            if (!fbBoard) return newBoard;
+
+            // Handle both array and object formats
+            if (Array.isArray(fbBoard)) {
+                for (let r = 0; r < height && r < fbBoard.length; r++) {
+                    if (fbBoard[r]) {
+                        if (Array.isArray(fbBoard[r])) {
+                            for (let c = 0; c < width && c < fbBoard[r].length; c++) {
+                                const val = fbBoard[r][c];
+                                newBoard[r][c] = (val === undefined || val === null) ? null : val;
+                            }
+                        } else {
+                            // Row is an object
+                            const rowData = fbBoard[r];
+                            for (let c = 0; c < width; c++) {
+                                const val = rowData[c];
+                                newBoard[r][c] = (val === undefined || val === null) ? null : val;
+                            }
+                        }
+                    }
+                }
+            } else {
+                // fbBoard is an object
+                for (let r = 0; r < height; r++) {
+                    if (fbBoard[r]) {
+                        const rowData = fbBoard[r];
+                        if (Array.isArray(rowData)) {
+                            for (let c = 0; c < width && c < rowData.length; c++) {
+                                const val = rowData[c];
+                                newBoard[r][c] = (val === undefined || val === null) ? null : val;
+                            }
+                        } else {
+                            for (let c = 0; c < width; c++) {
+                                const val = rowData[c];
+                                newBoard[r][c] = (val === undefined || val === null) ? null : val;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return newBoard;
+        }
+
+        let lastBoardState = null;
+
+        function redrawBoard() {
+            // Create a snapshot of current board state
+            const currentState = JSON.stringify(board);
+
+            // Only redraw if something actually changed
+            if (currentState === lastBoardState) return;
+            lastBoardState = currentState;
+
+            document.querySelectorAll('.cell').forEach(cell => {
+                const r = parseInt(cell.dataset.r);
+                const c = parseInt(cell.dataset.c);
+
+                // Safety check for board structure
+                if (!board[r]) return;
+
+                const cellData = board[r][c];
+
+                if (cellData) {
+                    if (cell.textContent !== cellData.val || cell.style.color !== cellData.color) {
+                        cell.textContent = cellData.val;
+                        cell.style.color = cellData.color;
+                        cell.classList.add('filled');
+                    }
+                } else {
+                    if (cell.textContent !== '') {
+                        cell.textContent = '';
+                        cell.style.color = '';
+                        cell.classList.remove('filled');
+                        cell.style.boxShadow = '';
+                        cell.style.background = '';
+                    }
+                }
+            });
+        }
+
+        // ============ LOCAL MULTIPLAYER ============
+        function createPlayerInputs() {
+            const count = parseInt(playerCountSelect.value);
+            playersContainer.innerHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                const div = document.createElement('div');
+                div.className = 'player-input';
+                div.innerHTML = `
+                    <label>Player ${i + 1} Name</label>
+                    <input type="text" id="pName${i}" value="${defaultNames[i]}">
+                    <label>Color</label>
+                    <input type="color" id="pColor${i}" value="${defaultColors[i]}">
+                `;
+                playersContainer.appendChild(div);
+            }
+        }
+
+        playerCountSelect.addEventListener('change', createPlayerInputs);
+
+        startBtn.addEventListener('click', () => {
+            const customSizeEnabled = customSizeCheck.checked;
+
+            if (customSizeEnabled) {
+                boardWidth = parseInt(document.getElementById('gridWidth').value);
+                boardHeight = parseInt(document.getElementById('gridHeight').value);
+                if (boardWidth < 3) boardWidth = 3;
+                if (boardWidth > 20) boardWidth = 20;
+                if (boardHeight < 3) boardHeight = 3;
+                if (boardHeight > 20) boardHeight = 20;
+            } else {
+                const size = parseInt(gridSizeIn.value);
+                boardWidth = size < 3 ? 3 : (size > 20 ? 20 : size);
+                boardHeight = boardWidth;
+            }
+
+            const count = parseInt(playerCountSelect.value);
+            players = [];
+
+            for (let i = 0; i < count; i++) {
+                const nameInput = document.getElementById(`pName${i}`);
+                const colorInput = document.getElementById(`pColor${i}`);
+                players.push({
+                    name: nameInput.value || defaultNames[i],
+                    color: colorInput.value
+                });
+            }
+
+            resetGame();
+            createPlayerCards();
+
+            setupPanel.classList.add('hidden');
+            gameUI.classList.remove('hidden');
+            log(`Game started: ${players.map(p => p.name).join(' vs ')} (${boardWidth}x${boardHeight})`);
+        });
+
+        // ============ AI MODE ============
+        startAIBtn.addEventListener('click', () => {
+            const customSizeEnabled = customSizeCheckAI.checked;
+
+            if (customSizeEnabled) {
+                boardWidth = parseInt(document.getElementById('gridWidthAI').value);
+                boardHeight = parseInt(document.getElementById('gridHeightAI').value);
+                if (boardWidth < 3) boardWidth = 3;
+                if (boardWidth > 20) boardWidth = 20;
+                if (boardHeight < 3) boardHeight = 3;
+                if (boardHeight > 20) boardHeight = 20;
+            } else {
+                const size = parseInt(document.getElementById('gridSizeAI').value);
+                boardWidth = size < 3 ? 3 : (size > 20 ? 20 : size);
+                boardHeight = boardWidth;
+            }
+
+            players = [
+                {
+                    name: document.getElementById('aiPlayerName').value || 'Player',
+                    color: document.getElementById('aiPlayerColor').value,
+                    isAI: false
+                },
+                {
+                    name: document.getElementById('aiName').value || 'AI',
+                    color: document.getElementById('aiColor').value,
+                    isAI: true
+                }
+            ];
+
+            aiPlayerIndex = 1;
+
+            resetGame();
+            createPlayerCards();
+
+            aiSetupPanel.classList.add('hidden');
+            gameUI.classList.remove('hidden');
+            log(`AI Game started: ${players[0].name} vs ${players[1].name} (${boardWidth}x${boardHeight})`);
+        });
+
+        menuBtn.addEventListener('click', () => {
+            if (confirm("Exit current game?")) {
+                if (roomRef) roomRef.off();
+                goToMenu();
+            }
+        });
+
+        modalMenuBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            if (roomRef) {
+                roomRef.off();
+                // Clean up the room if host
+                if (isOnlineMode && players.length > 0) {
+                    const myPlayer = players.find(p => p.id === myPlayerId);
+                    if (myPlayer && myPlayer.isHost) {
+                        roomRef.remove();
+                    }
+                }
+            }
+            goToMenu();
+        });
+
+        modalRestartBtn.addEventListener('click', async () => {
+            modal.classList.add('hidden');
+
+            if (isOnlineMode) {
+                // Only host can restart online games
+                const myPlayer = players.find(p => p.id === myPlayerId);
+                if (!myPlayer || !myPlayer.isHost) {
+                    alert('Only the host can restart the game!');
+                    return;
+                }
+
+                // Reset game state in Firebase with clean board
+                const initialBoard = [];
+                for (let r = 0; r < boardHeight; r++) {
+                    initialBoard[r] = [];
+                    for (let c = 0; c < boardWidth; c++) {
+                        initialBoard[r][c] = null;
+                    }
+                }
+
+                const initialState = {
+                    board: initialBoard,
+                    current: 0,
+                    scores: Array(players.length).fill(0),
+                    history: [],
+                    matchedSet: [],
+                    matchedLines: [],
+                    gameOver: false
+                };
+
+                await roomRef.child('gameState').set(initialState);
+
+                // Local reset will happen via Firebase listener
+            } else {
+                resetGame();
+
+                // If AI game, check if AI goes first
+                if (aiEnabled && current === aiPlayerIndex) {
+                    setTimeout(() => makeAIMove(), 800);
+                }
+            }
+        });
+
+        function goToMenu() {
+            gameUI.classList.add('hidden');
+            setupPanel.classList.add('hidden');
+            lobbyPanel.classList.add('hidden');
+            aiSetupPanel.classList.add('hidden');
+            modePanel.classList.remove('hidden');
+            isOnlineMode = false;
+            aiEnabled = false;
+            roomCode = null;
+        }
+
+        function createPlayerCards() {
+            playerCardsContainer.innerHTML = '';
+
+            // Menu button
+            const menuButton = document.createElement('button');
+            menuButton.className = 'secondary';
+            menuButton.id = 'menuBtn';
+            menuButton.style.background = '#475569';
+            menuButton.textContent = 'Back to Menu';
+            menuButton.addEventListener('click', () => {
+                if (confirm("Exit current game?")) {
+                    if (roomRef) roomRef.off();
+                    goToMenu();
+                }
+            });
+            playerCardsContainer.appendChild(menuButton);
+
+            // End Game button (host only, online only)
+            if (isOnlineMode && players.length > 0) {
+                const myPlayer = players.find(p => p.id === myPlayerId);
+                if (myPlayer && myPlayer.isHost) {
+                    const endGameBtn = document.createElement('button');
+                    endGameBtn.className = 'secondary';
+                    endGameBtn.style.background = '#ef4444';
+                    endGameBtn.textContent = 'End Game';
+                    endGameBtn.addEventListener('click', async () => {
+                        if (confirm('End the game for all players?')) {
+                            await roomRef.child('gameState').update({ gameOver: true });
+                            endGame();
+                        }
+                    });
+                    playerCardsContainer.appendChild(endGameBtn);
+                }
+            }
+
+            players.forEach((player, idx) => {
+                const card = document.createElement('div');
+                card.className = 'player-card';
+                card.id = `card${idx}`;
+                card.innerHTML = `
+                    <div style="width:12px; height:12px; border-radius:50%; background:${player.color}"></div>
+                    <div>
+                        <div class="player-score" id="score${idx}">0</div>
+                        <div class="player-name">${player.name}</div>
+                    </div>
+                `;
+                playerCardsContainer.appendChild(card);
+            });
+        }
+
+        function resetGame() {
+            // Create clean board with no undefined values
+            board = [];
+            for (let r = 0; r < boardHeight; r++) {
+                board[r] = [];
+                for (let c = 0; c < boardWidth; c++) {
+                    board[r][c] = null;
+                }
+            }
+
+            matchedSet.clear();
+            history = [];
+            scores = Array(players.length).fill(0);
+            current = 0;
+            logEl.innerHTML = '';
+            svg.innerHTML = '';
+
+            renderBoardGrid();
+            updateScoreboard();
+
+            log('Game reset!');
+        }
+
+        function renderBoardGrid() {
+            boardEl.innerHTML = '';
+            const maxSize = 650;
+            const totalGapWidth = (boardWidth - 1) * 4;
+            const totalGapHeight = (boardHeight - 1) * 4;
+            const cellWidth = Math.floor((maxSize - totalGapWidth) / boardWidth);
+            const cellHeight = Math.floor((maxSize - totalGapHeight) / boardHeight);
+            const cellSize = Math.min(cellWidth, cellHeight);
+
+            boardEl.style.gridTemplateColumns = `repeat(${boardWidth}, ${cellSize}px)`;
+            boardEl.style.gridTemplateRows = `repeat(${boardHeight}, ${cellSize}px)`;
+            boardEl.style.width = 'fit-content';
+            boardEl.style.setProperty('--cell-size', cellSize + 'px');
+
+            for (let r = 0; r < boardHeight; r++) {
+                for (let c = 0; c < boardWidth; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+                    cell.addEventListener('click', handleCellClick);
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function handleCellClick(e) {
+            const r = parseInt(e.target.dataset.r);
+            const c = parseInt(e.target.dataset.c);
+
+            // Defensive check for board structure
+            if (!board[r] || board[r][c] !== null) return;
+
+            // Disable clicks if it's AI's turn
+            if (aiEnabled && current === aiPlayerIndex) {
+                return;
+            }
+
+            // Check if it's this player's turn in online mode
+            if (isOnlineMode) {
+                const myIndex = players.findIndex(p => p.id === myPlayerId);
+                if (myIndex !== current) {
+                    log("Not your turn!");
+                    return;
+                }
+            }
+
+            document.querySelectorAll('.chooser').forEach(el => el.remove());
+            createChooser(e.target, r, c);
+        }
+
+        function createChooser(cellEl, r, c) {
+            const chooser = document.createElement('div');
+            chooser.className = 'chooser';
+            chooser.style.background = players[current].color;
+
+            const btnS = document.createElement('button'); btnS.textContent = 'S';
+            const btnO = document.createElement('button'); btnO.textContent = 'O';
+
+            btnS.onclick = () => makeMove(r, c, 'S');
+            btnO.onclick = () => makeMove(r, c, 'O');
+
+            chooser.appendChild(btnS);
+            chooser.appendChild(btnO);
+            document.body.appendChild(chooser);
+
+            const rect = cellEl.getBoundingClientRect();
+            chooser.style.top = (rect.top + window.scrollY - 50) + 'px';
+            chooser.style.left = (rect.left + window.scrollX + (rect.width / 2) - 50) + 'px';
+
+            setTimeout(() => {
+                const closeHandler = (ev) => {
+                    if (!chooser.contains(ev.target)) {
+                        chooser.remove();
+                        document.removeEventListener('click', closeHandler);
+                    }
+                };
+                document.addEventListener('click', closeHandler);
+            }, 0);
+        }
+
+        // Clean board data for Firebase (no undefined values allowed)
+        function cleanBoardForFirebase(board) {
+            const cleaned = [];
+            for (let r = 0; r < boardHeight; r++) {
+                cleaned[r] = [];
+                for (let c = 0; c < boardWidth; c++) {
+                    const cell = board[r] ? board[r][c] : null;
+                    cleaned[r][c] = (cell === undefined || cell === null) ? null : cell;
+                }
+            }
+            return cleaned;
+        }
+
+        async function makeMove(r, c, letter) {
+            document.querySelectorAll('.chooser').forEach(el => el.remove());
+
+            board[r][c] = { val: letter, color: players[current].color };
+            history.push({ r, c, val: letter, playerIdx: current });
+
+            const cell = getCell(r, c);
+            cell.textContent = letter;
+            cell.style.color = players[current].color;
+            cell.classList.add('filled');
+
+            const newMatches = checkSOS(r, c);
+            let matchedLines = [];
+
+            if (newMatches.length > 0) {
+                scores[current] += newMatches.length;
+                newMatches.forEach(m => {
+                    matchedSet.add(m.id);
+                    drawLine(m.coords, players[current].color);
+                    highlightCells(m.coords, players[current].color);
+                    // Store line data for Firebase sync
+                    matchedLines.push({ coords: m.coords, color: players[current].color });
+                });
+                log(`${players[current].name} scored ${newMatches.length} point(s)!`);
+            } else {
+                current = (current + 1) % players.length;
+            }
+
+            updateScoreboard();
+
+            // Update Firebase if online
+            if (isOnlineMode && roomRef) {
+                try {
+                    const snapshot = await roomRef.child('gameState').once('value');
+                    const currentState = snapshot.val() || {};
+                    const existingLines = currentState.matchedLines || [];
+
+                    // Clean board data - remove any undefined values
+                    const cleanedBoard = cleanBoardForFirebase(board);
+
+                    await roomRef.child('gameState').set({
+                        board: cleanedBoard,
+                        current: current,
+                        scores: scores,
+                        history: history,
+                        matchedSet: Array.from(matchedSet),
+                        matchedLines: [...existingLines, ...matchedLines],
+                        gameOver: isFull()
+                    });
+                } catch (error) {
+                    console.error('Firebase update error:', error);
+                    // Try to recover by reloading state
+                    const snapshot = await roomRef.once('value');
+                    const data = snapshot.val();
+                    if (data && data.gameState) {
+                        loadOnlineGame(data);
+                    }
+                }
+            }
+
+            if (isFull()) {
+                endGame();
+            } else if (aiEnabled && current === aiPlayerIndex) {
+                // AI's turn
+                setTimeout(() => makeAIMove(), 800);
+            }
+        }
+
+        function checkSOS(r, c) {
+            const dirs = [[0, 1], [1, 0], [1, 1], [1, -1]];
+            let matches = [];
+
+            const getVal = (row, col) => {
+                if (row < 0 || col < 0 || row >= boardHeight || col >= boardWidth) return '';
+                if (!board[row] || !board[row][col]) return '';
+                return board[row][col].val || '';
+            };
+
+            dirs.forEach(([dr, dc]) => {
+                const sequences = [
+                    [[0, 0], [dr, dc], [dr * 2, dc * 2]],
+                    [[-dr, -dc], [0, 0], [dr, dc]],
+                    [[-dr * 2, -dc * 2], [-dr, -dc], [0, 0]]
+                ];
+
+                sequences.forEach(seq => {
+                    const chars = seq.map(offset => getVal(r + offset[0], c + offset[1]));
+                    if (chars.join('') === 'SOS') {
+                        const coords = seq.map(offset => [r + offset[0], c + offset[1]]);
+                        const id = coords.map(p => p.join(',')).sort().join('|');
+                        if (!matchedSet.has(id)) {
+                            matches.push({ id, coords });
+                        }
+                    }
+                });
+            });
+            return matches;
+        }
+
+        // ============ AI LOGIC ============
+        function makeAIMove() {
+            const difficulty = document.getElementById('aiDifficulty')?.value || 'medium';
+
+            let move = null;
+
+            if (difficulty === 'medium') {
+                // Try to score first
+                move = findScoringMove();
+
+                // If no scoring move, try to block opponent
+                if (!move) {
+                    move = findBlockingMove();
+                }
+            }
+
+            // If no smart move found, make random move
+            if (!move) {
+                move = findRandomMove();
+            }
+
+            if (move) {
+                makeMove(move.r, move.c, move.letter);
+            }
+        }
+
+        function findScoringMove() {
+            // Try each empty cell with both S and O
+            for (let r = 0; r < boardHeight; r++) {
+                for (let c = 0; c < boardWidth; c++) {
+                    if (board[r][c] === null) {
+                        // Try S
+                        board[r][c] = { val: 'S', color: players[current].color };
+                        const matchesS = checkSOS(r, c);
+                        board[r][c] = null;
+
+                        if (matchesS.length > 0) {
+                            return { r, c, letter: 'S' };
+                        }
+
+                        // Try O
+                        board[r][c] = { val: 'O', color: players[current].color };
+                        const matchesO = checkSOS(r, c);
+                        board[r][c] = null;
+
+                        if (matchesO.length > 0) {
+                            return { r, c, letter: 'O' };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function findBlockingMove() {
+            // Check if opponent can score on next turn
+            const opponentIdx = (current + 1) % players.length;
+
+            for (let r = 0; r < boardHeight; r++) {
+                for (let c = 0; c < boardWidth; c++) {
+                    if (board[r][c] === null) {
+                        // Check if opponent can score with S
+                        board[r][c] = { val: 'S', color: players[opponentIdx].color };
+                        const matchesS = checkSOS(r, c);
+                        board[r][c] = null;
+
+                        if (matchesS.length > 0) {
+                            // Block with random letter
+                            return { r, c, letter: Math.random() > 0.5 ? 'S' : 'O' };
+                        }
+
+                        // Check if opponent can score with O
+                        board[r][c] = { val: 'O', color: players[opponentIdx].color };
+                        const matchesO = checkSOS(r, c);
+                        board[r][c] = null;
+
+                        if (matchesO.length > 0) {
+                            return { r, c, letter: Math.random() > 0.5 ? 'S' : 'O' };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function findRandomMove() {
+            const emptyCells = [];
+            for (let r = 0; r < boardHeight; r++) {
+                for (let c = 0; c < boardWidth; c++) {
+                    if (board[r][c] === null) {
+                        emptyCells.push({ r, c });
+                    }
+                }
+            }
+
+            if (emptyCells.length > 0) {
+                const cell = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                return { ...cell, letter: Math.random() > 0.5 ? 'S' : 'O' };
+            }
+            return null;
+        }
+
+        function drawLine(coords, color) {
+            const c1 = getCell(coords[0][0], coords[0][1]);
+            const c3 = getCell(coords[2][0], coords[2][1]);
+            if (!c1 || !c3) return;
+
+            const r1 = c1.getBoundingClientRect();
+            const r3 = c3.getBoundingClientRect();
+            const containerRect = document.querySelector('.board-container').getBoundingClientRect();
+
+            const x1 = (r1.left - containerRect.left + r1.width / 2) - 16;
+            const y1 = (r1.top - containerRect.top + r1.height / 2) - 16;
+            const x2 = (r3.left - containerRect.left + r3.width / 2) - 16;
+            const y2 = (r3.top - containerRect.top + r3.height / 2) - 16;
+
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            line.setAttribute("x1", x1); line.setAttribute("y1", y1);
+            line.setAttribute("x2", x2); line.setAttribute("y2", y2);
+            line.setAttribute("stroke", color);
+            line.setAttribute("stroke-width", "6");
+            line.setAttribute("stroke-linecap", "round");
+            line.setAttribute("opacity", "0.8");
+
+            svg.appendChild(line);
+        }
+
+        function highlightCells(coords, color) {
+            coords.forEach(([r, c]) => {
+                const cell = getCell(r, c);
+                cell.style.boxShadow = `inset 0 0 0 4px ${color}40`;
+                cell.style.background = `${color}10`;
+            });
+        }
+
+        function updateScoreboard() {
+            players.forEach((player, idx) => {
+                const scoreEl = document.getElementById(`score${idx}`);
+                const cardEl = document.getElementById(`card${idx}`);
+
+                // Ensure scores array exists and has proper length
+                if (!scores[idx] && scores[idx] !== 0) scores[idx] = 0;
+
+                if (scoreEl) scoreEl.textContent = scores[idx];
+
+                if (cardEl) {
+                    if (idx === current) {
+                        cardEl.classList.add('active');
+                        cardEl.style.setProperty('--active-color', player.color);
+                    } else {
+                        cardEl.classList.remove('active');
+                    }
+                }
+            });
+        }
+
+        function isFull() {
+            return history.length === (boardWidth * boardHeight);
+        }
+
+        function endGame() {
+            const maxScore = Math.max(...scores);
+            const winners = players.filter((p, idx) => scores[idx] === maxScore);
+
+            let winnerMsg = '';
+            let color = '#fff';
+
+            if (winners.length === 1) {
+                winnerMsg = `${winners[0].name} WON!`;
+                color = winners[0].color;
+            } else {
+                winnerMsg = "IT'S A DRAW!";
+                color = '#e2e8f0';
+            }
+
+            winnerText.textContent = winnerMsg;
+            winnerText.style.color = color;
+
+            const scoreText = players.map((p, idx) => `${p.name}: ${scores[idx]}`).join(' | ');
+            finalScore.textContent = scoreText;
+
+            // Show/hide Play Again button based on mode and role
+            if (isOnlineMode) {
+                const myPlayer = players.find(p => p.id === myPlayerId);
+                modalRestartBtn.style.display = (myPlayer && myPlayer.isHost) ? 'block' : 'none';
+            } else {
+                modalRestartBtn.style.display = 'block';
+            }
+
+            modal.classList.remove('hidden');
+            log(`--- GAME OVER: ${winnerMsg} ---`);
+        }
+
+        function getCell(r, c) {
+            return document.querySelector(`.cell[data-r='${r}'][data-c='${c}']`);
+        }
+
+        function log(msg) {
+            const div = document.createElement('div');
+            div.className = 'log-entry';
+            div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logEl.prepend(div);
+        }
+    </script>
+</body>
+
+</html>
